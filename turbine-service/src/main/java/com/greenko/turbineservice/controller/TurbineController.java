@@ -2,6 +2,7 @@ package com.greenko.turbineservice.controller;
 
 import com.greenko.turbineservice.model.Turbine;
 import com.greenko.turbineservice.service.TurbineService;
+import com.greenko.turbineservice.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -18,6 +19,19 @@ import java.util.List;
 public class TurbineController {
 
     private final TurbineService turbineService;
+    private final JwtUtil jwtUtil;
+    
+    private String extractRoleFromToken(String authHeader) {
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            try {
+                String token = authHeader.substring(7);
+                return jwtUtil.extractRole(token);
+            } catch (Exception e) {
+                log.error("Failed to extract role from token: {}", e.getMessage());
+            }
+        }
+        return null;
+    }
 
     @GetMapping
     public ResponseEntity<List<Turbine>> getAllTurbines() {
@@ -36,8 +50,15 @@ public class TurbineController {
     }
 
     @PostMapping
-    public ResponseEntity<?> createTurbine(@RequestBody Turbine turbine, @RequestHeader(value = "X-User-Role", required = false) String role) {
+    public ResponseEntity<?> createTurbine(
+            @RequestBody Turbine turbine, 
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestHeader(value = "X-User-Role", required = false) String headerRole) {
         log.info("POST /api/turbines - Creating turbine");
+        
+        // Try X-User-Role header first, then extract from JWT
+        String role = headerRole != null ? headerRole : extractRoleFromToken(authHeader);
+        log.info("Extracted role: {}", role);
         
         if (role == null || !role.equals("ADMIN")) {
             log.warn("Unauthorized create attempt by role: {}", role);
@@ -50,8 +71,16 @@ public class TurbineController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateTurbine(@PathVariable String id, @RequestBody Turbine turbine, @RequestHeader(value = "X-User-Role", required = false) String role) {
+    public ResponseEntity<?> updateTurbine(
+            @PathVariable String id, 
+            @RequestBody Turbine turbine, 
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestHeader(value = "X-User-Role", required = false) String headerRole) {
         log.info("PUT /api/turbines/{} - Updating turbine", id);
+        
+        // Try X-User-Role header first, then extract from JWT
+        String role = headerRole != null ? headerRole : extractRoleFromToken(authHeader);
+        log.info("Extracted role: {}", role);
         
         if (role == null || !role.equals("ADMIN")) {
             log.warn("Unauthorized update attempt by role: {}", role);
@@ -71,8 +100,15 @@ public class TurbineController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteTurbine(@PathVariable String id, @RequestHeader(value = "X-User-Role", required = false) String role) {
+    public ResponseEntity<?> deleteTurbine(
+            @PathVariable String id, 
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestHeader(value = "X-User-Role", required = false) String headerRole) {
         log.info("DELETE /api/turbines/{} - Deleting turbine", id);
+        
+        // Try X-User-Role header first, then extract from JWT
+        String role = headerRole != null ? headerRole : extractRoleFromToken(authHeader);
+        log.info("Extracted role: {}", role);
         
         if (role == null || !role.equals("ADMIN")) {
             log.warn("Unauthorized delete attempt by role: {}", role);
@@ -92,8 +128,16 @@ public class TurbineController {
     }
 
     @PatchMapping("/{id}/status")
-    public ResponseEntity<?> updateTurbineStatus(@PathVariable String id, @RequestParam String status, @RequestHeader(value = "X-User-Role", required = false) String role) {
+    public ResponseEntity<?> updateTurbineStatus(
+            @PathVariable String id, 
+            @RequestParam String status, 
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestHeader(value = "X-User-Role", required = false) String headerRole) {
         log.info("PATCH /api/turbines/{}/status - Updating status to {}", id, status);
+        
+        // Try X-User-Role header first, then extract from JWT
+        String role = headerRole != null ? headerRole : extractRoleFromToken(authHeader);
+        log.info("Extracted role: {}", role);
         
         if (role == null || !role.equals("ADMIN")) {
             log.warn("Unauthorized status update attempt by role: {}", role);

@@ -62,15 +62,56 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(@RequestHeader("X-Username") String username) {
-        authService.logout(username);
+    public ResponseEntity<?> logout(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestHeader(value = "X-Username", required = false) String username) {
+        
+        // Extract username from JWT if not provided in header
+        if (username == null && authHeader != null && authHeader.startsWith("Bearer ")) {
+            try {
+                String token = authHeader.substring(7);
+                com.greenko.turbineservice.security.JwtUtil jwtUtil = new com.greenko.turbineservice.security.JwtUtil();
+                username = jwtUtil.extractUsername(token);
+            } catch (Exception e) {
+                log.error("Failed to extract username from token: {}", e.getMessage());
+            }
+        }
+        
+        if (username != null) {
+            authService.logout(username);
+            log.info("User logged out: {}", username);
+        }
+        
         Map<String, String> response = new HashMap<>();
         response.put("message", "Logout successful");
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/me")
-    public ResponseEntity<?> getCurrentUser(@RequestHeader("X-Username") String username) {
+    public ResponseEntity<?> getCurrentUser(
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestHeader(value = "X-Username", required = false) String username) {
+        
+        // Extract username from JWT if not provided in header
+        if (username == null && authHeader != null && authHeader.startsWith("Bearer ")) {
+            try {
+                String token = authHeader.substring(7);
+                com.greenko.turbineservice.security.JwtUtil jwtUtil = new com.greenko.turbineservice.security.JwtUtil();
+                username = jwtUtil.extractUsername(token);
+            } catch (Exception e) {
+                log.error("Failed to extract username from token: {}", e.getMessage());
+                Map<String, String> error = new HashMap<>();
+                error.put("message", "Invalid or expired token");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+            }
+        }
+        
+        if (username == null) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", "Authentication required");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+        }
+        
         try {
             User user = authService.getCurrentUser(username);
             Map<String, String> response = new HashMap<>();

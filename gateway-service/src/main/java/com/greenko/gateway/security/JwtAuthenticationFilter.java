@@ -1,13 +1,13 @@
 package com.greenko.gateway.security;
 
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import org.springframework.web.server.WebFilter;
 import org.springframework.web.server.WebFilterChain;
 import reactor.core.publisher.Mono;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.server.reactive.ServerHttpRequest;
 
 @Component
 public class JwtAuthenticationFilter implements WebFilter {
@@ -23,8 +23,8 @@ public class JwtAuthenticationFilter implements WebFilter {
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getPath().value();
 
-        // Skip authentication for login, signup, and health endpoints
-        if (path.contains("/auth/") || path.contains("/actuator/health")) {
+        // Skip authentication for auth endpoints and health checks
+        if (path.startsWith("/auth/") || path.contains("/actuator/health")) {
             return chain.filter(exchange);
         }
 

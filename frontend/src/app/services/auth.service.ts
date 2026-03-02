@@ -29,9 +29,11 @@ export class AuthService {
   constructor(private http: HttpClient) {}
 
   login(username: string, password: string): Observable<AuthResponse> {
+    console.log('[AuthService] Login attempt for:', username);
     return this.http.post<AuthResponse>('/api/auth/login', { username, password })
       .pipe(
         tap(response => {
+          console.log('[AuthService] Login successful, storing token');
           this.setToken(response.token);
           this.setUsername(response.username);
           this.loggedIn.next(true);
@@ -40,9 +42,11 @@ export class AuthService {
   }
 
   signup(username: string, password: string, email: string, fullName: string, role?: string): Observable<AuthResponse> {
+    console.log('[AuthService] Signup attempt for:', username, 'with role:', role);
     return this.http.post<AuthResponse>('/api/auth/signup', { username, password, email, fullName, role: role || 'USER' })
       .pipe(
         tap(response => {
+          console.log('[AuthService] Signup successful, storing token');
           this.setToken(response.token);
           this.setUsername(response.username);
           this.loggedIn.next(true);
