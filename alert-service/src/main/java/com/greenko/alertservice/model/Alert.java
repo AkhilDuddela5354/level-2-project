@@ -2,6 +2,7 @@ package com.greenko.alertservice.model;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -10,6 +11,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "alerts")
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class Alert {
@@ -18,35 +20,39 @@ public class Alert {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private String title;
+    @Column(name = "turbine_id", nullable = false, length = 50)
+    private String turbineId;
 
-    @Column(nullable = false, length = 1000)
+    @Column(name = "turbine_name", length = 100)
+    private String turbineName;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private AlertSeverity severity;
+
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String message;
 
-    @Column(nullable = false)
-    private String severity; // INFO, WARNING, ERROR, CRITICAL
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private AlertStatus status;
 
-    @Column(nullable = false)
-    private String targetService; // Service to send alert to
+    @Column(name = "acknowledged_at")
+    private LocalDateTime acknowledgedAt;
 
-    @Column(nullable = false)
-    private String status; // PENDING, SENT, FAILED
-
-    @Column(nullable = false)
+    @Column(name = "created_at")
     private LocalDateTime createdAt;
 
-    @Column
-    private LocalDateTime sentAt;
-
-    @Column(length = 500)
-    private String errorMessage;
+    @Column(name = "resolved_at")
+    private LocalDateTime resolvedAt;
 
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
         if (status == null) {
-            status = "PENDING";
+            status = AlertStatus.ACTIVE;
         }
     }
 }

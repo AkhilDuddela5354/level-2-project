@@ -8,8 +8,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AlertRequestDto {
-    private String title;
-    private String message;
+    private String turbineId;
+    private String turbineName;
     private String severity;
-    private String targetService;
+    private String message;
 }

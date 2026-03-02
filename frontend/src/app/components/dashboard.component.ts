@@ -16,6 +16,8 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { TurbineService, Turbine } from '../services/turbine.service';
 import { AuthService } from '../services/auth.service';
+import { TelemetryService, TelemetryData } from '../services/telemetry.service';
+import { AlertService, Alert as APIAlert, AlertSeverity as APISeverity, AlertStatus as APIStatus } from '../services/alert.service';
 import { Subject, interval, of } from 'rxjs';
 import { takeUntil, switchMap, catchError, startWith } from 'rxjs/operators';
 import { Chart, ChartConfiguration, registerables } from 'chart.js';
@@ -256,9 +258,12 @@ export interface Toast {
                 <div><strong>Region:</strong> {{ t.region }}</div>
                 <div><strong>Capacity:</strong> {{ t.capacity }} MW</div>
               </div>
-              <div class="turbine-actions" *ngIf="isAdmin()">
-                <button class="btn-sm btn-edit" (click)="openEditModal(t)">Edit</button>
-                <button class="btn-sm btn-delete" (click)="confirmDeleteTurbine(t)">Delete</button>
+              <div class="turbine-actions">
+                <button class="btn-sm btn-telemetry" (click)="openTelemetryModal(t)" title="Add Telemetry Data">
+                  📊 Add Data
+                </button>
+                <button *ngIf="isAdmin()" class="btn-sm btn-edit" (click)="openEditModal(t)">Edit</button>
+                <button *ngIf="isAdmin()" class="btn-sm btn-delete" (click)="confirmDeleteTurbine(t)">Delete</button>
               </div>
             </div>
           </div>
@@ -347,12 +352,27 @@ export interface Toast {
               <option value="WARNING">Warning</option>
               <option value="INFO">Info</option>
             </select>
+            <button class="btn-refresh" (click)="refreshAlerts()" title="Refresh Alerts">
+              ↻ Refresh
+            </button>
+            <button class="btn-scan" (click)="scanAnomalies()" title="Scan for Anomalies">
+              🔍 Scan Anomalies
+            </button>
           </div>
           <div class="alerts-list">
             <div *ngFor="let a of filteredAlerts()" class="alert-card" [class]="a.severity.toLowerCase()">
               <div class="alert-header">
                 <span class="alert-severity-badge">{{ a.severity }}</span>
                 <span class="alert-time">{{ a.timestamp | date:'short' }}</span>
+                <div class="alert-actions">
+                  <button *ngIf="!a.acknowledged && isAdmin()" class="btn-ack" (click)="acknowledgeAlert(a)" title="Acknowledge">
+                    ✓
+                  </button>
+                  <button *ngIf="a.acknowledged && isAdmin()" class="btn-resolve" (click)="resolveAlert(a)" title="Resolve">
+                    ✕
+                  </button>
+                  <span *ngIf="a.acknowledged" class="ack-badge">Acknowledged</span>
+                </div>
               </div>
               <div class="alert-body">
                 <div class="alert-turbine">{{ a.turbineName }} ({{ a.farmName }})</div>
@@ -432,6 +452,52 @@ export interface Toast {
           <button class="btn-secondary" (click)="cancelDelete()">Cancel</button>
           <button class="btn-danger" (click)="executeDelete()">Delete</button>
         </div>
+      </div>
+    </div>
+
+    <!-- Add Telemetry Data Modal -->
+    <div *ngIf="showTelemetryModal" class="modal-overlay" (click)="closeTelemetryModal()">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <h2>Add Telemetry Data</h2>
+        <p class="modal-subtitle" *ngIf="selectedTurbineForTelemetry">
+          For: <strong>{{ selectedTurbineForTelemetry.turbineName }}</strong> ({{ selectedTurbineForTelemetry.turbineId }})
+        </p>
+        <form (ngSubmit)="saveTelemetryData()">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Power Output (MW)</label>
+              <input type="number" step="0.1" [(ngModel)]="formTelemetry.powerOutput" name="powerOutput" required>
+            </div>
+            <div class="form-group">
+              <label>Wind Speed (m/s)</label>
+              <input type="number" step="0.1" [(ngModel)]="formTelemetry.windSpeed" name="windSpeed" required>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Temperature (°C)</label>
+              <input type="number" step="0.1" [(ngModel)]="formTelemetry.temperature" name="temperature" required>
+            </div>
+            <div class="form-group">
+              <label>Vibration (mm/s)</label>
+              <input type="number" step="0.1" [(ngModel)]="formTelemetry.vibration" name="vibration" required>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>RPM</label>
+              <input type="number" step="0.1" [(ngModel)]="formTelemetry.rpm" name="rpm" required>
+            </div>
+            <div class="form-group">
+              <label>Efficiency (%)</label>
+              <input type="number" step="0.1" min="0" max="100" [(ngModel)]="formTelemetry.efficiency" name="efficiency" required>
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button type="button" class="btn-secondary" (click)="closeTelemetryModal()">Cancel</button>
+            <button type="submit" class="btn-primary">Submit</button>
+          </div>
+        </form>
       </div>
     </div>
 
@@ -560,6 +626,8 @@ export interface Toast {
     .sort-select { padding: 10px 16px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 0.95rem; }
     .btn-toggle { padding: 10px 16px; background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer; }
     .btn-toggle:hover { background: #f8fafc; }
+    .btn-add { padding: 10px 16px; background: #10b981; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; transition: all 0.2s; }
+    .btn-add:hover { background: #059669; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(16,185,129,0.3); }
     .livefeed-container { max-height: 600px; overflow-y: auto; background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
     .live-event { display: flex; align-items: flex-start; gap: 12px; padding: 12px; border-radius: 8px; margin-bottom: 8px; border-left: 4px solid #94a3b8; }
     .live-event.type-status { border-left-color: #0ea5e9; background: #f0f9ff; }
@@ -592,8 +660,10 @@ export interface Toast {
     .turbine-card.status-offline .turbine-status { background: #fee2e2; color: #dc2626; }
     .turbine-details { font-size: 0.9rem; color: #64748b; margin-bottom: 12px; }
     .turbine-details div { margin-bottom: 4px; }
-    .turbine-actions { display: flex; gap: 8px; }
-    .btn-sm { padding: 6px 12px; font-size: 0.85rem; border: none; border-radius: 6px; cursor: pointer; }
+    .turbine-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn-sm { padding: 6px 12px; font-size: 0.85rem; border: none; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
+    .btn-telemetry { background: #10b981; color: #fff; }
+    .btn-telemetry:hover { background: #059669; transform: translateY(-1px); }
     .btn-edit { background: #e0e7ff; color: #4338ca; }
     .btn-edit:hover { background: #c7d2fe; }
     .btn-delete { background: #fee2e2; color: #dc2626; }
@@ -632,7 +702,16 @@ export interface Toast {
     .alert-card.critical { border-left-color: #dc2626; }
     .alert-card.warning { border-left-color: #f59e0b; }
     .alert-card.info { border-left-color: #3b82f6; }
-    .alert-header { display: flex; justify-content: space-between; margin-bottom: 12px; }
+    .alert-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .alert-actions { display: flex; gap: 8px; align-items: center; }
+    .btn-ack, .btn-resolve { padding: 6px 12px; border-radius: 6px; border: none; cursor: pointer; font-size: 0.9rem; transition: all 0.2s; }
+    .btn-ack { background: #10b981; color: #fff; }
+    .btn-ack:hover { background: #059669; }
+    .btn-resolve { background: #dc2626; color: #fff; }
+    .btn-resolve:hover { background: #b91c1c; }
+    .ack-badge { background: #e0f2fe; color: #0369a1; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: 500; }
+    .btn-refresh, .btn-scan { padding: 10px 16px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; cursor: pointer; font-size: 0.95rem; transition: all 0.2s; }
+    .btn-refresh:hover, .btn-scan:hover { background: #f8fafc; border-color: #cbd5e1; }
     .alert-severity-badge { font-weight: 600; font-size: 0.9rem; }
     .alert-card.critical .alert-severity-badge { color: #dc2626; }
     .alert-card.warning .alert-severity-badge { color: #d97706; }
@@ -646,7 +725,9 @@ export interface Toast {
     .reports-placeholder p { color: #64748b; margin-bottom: 24px; }
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; animation: fadeIn 0.2s; }
     .modal-content { background: #fff; border-radius: 12px; padding: 24px; max-width: 480px; width: 90%; max-height: 90vh; overflow-y: auto; box-shadow: 0 24px 48px rgba(0,0,0,0.2); }
-    .modal-content h2 { margin: 0 0 20px 0; }
+    .modal-content h2 { margin: 0 0 12px 0; }
+    .modal-subtitle { color: #64748b; margin: 0 0 20px 0; font-size: 0.95rem; }
+    .modal-subtitle strong { color: #0f172a; }
     .form-group { margin-bottom: 16px; }
     .form-group label { display: block; margin-bottom: 6px; font-weight: 500; }
     .form-group input, .form-group select { width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 8px; }
@@ -713,8 +794,10 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewChecked {
   loading = signal<boolean>(false);
   showModal = false;
   showConfirmDialog = false;
+  showTelemetryModal = false;
   turbineToDelete: Turbine | null = null;
   editingTurbine: Turbine | null = null;
+  selectedTurbineForTelemetry: Turbine | null = null;
   kpiHover = signal<string | null>(null);
   autoScroll = signal<boolean>(true);
   toasts = signal<Toast[]>([]);
@@ -743,6 +826,16 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewChecked {
     longitude: 0,
     installationDate: new Date().toISOString().split('T')[0],
     lastMaintenanceDate: null,
+  };
+
+  formTelemetry: Partial<TelemetryData> = {
+    turbineId: '',
+    powerOutput: 0,
+    windSpeed: 0,
+    temperature: 0,
+    vibration: 0,
+    rpm: 0,
+    efficiency: 0,
   };
 
   regions = computed(() => [...new Set(this.turbines().map((x) => x.region))].sort());
@@ -907,6 +1000,8 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewChecked {
   constructor(
     private turbineService: TurbineService,
     private authService: AuthService,
+    private telemetryService: TelemetryService,
+    private alertService: AlertService,
     private router: Router,
     private cdr: ChangeDetectorRef
   ) {}
@@ -964,7 +1059,180 @@ export class DashboardComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   private setupAlerts(): void {
-    this.alerts.set(this.getMockAlerts());
+    this.alertService.getAlerts().pipe(
+      catchError(err => {
+        console.error('[Dashboard] Error fetching alerts:', err);
+        return of([]);
+      })
+    ).subscribe(apiAlerts => {
+      const mappedAlerts: Alert[] = apiAlerts.map(a => ({
+        id: a.id?.toString() || '',
+        turbineId: a.turbineId,
+        turbineName: a.turbineName || a.turbineId,
+        farmName: this.getTurbineFarmName(a.turbineId),
+        region: this.getTurbineRegion(a.turbineId),
+        severity: a.severity as AlertSeverity,
+        message: a.message,
+        timestamp: a.createdAt ? new Date(a.createdAt) : new Date(),
+        acknowledged: a.status === 'ACKNOWLEDGED' || a.status === 'RESOLVED'
+      }));
+      this.alerts.set(mappedAlerts);
+      this.cdr.markForCheck();
+    });
+  }
+
+  private getTurbineFarmName(turbineId: string): string {
+    const t = this.turbines().find(x => x.turbineId === turbineId);
+    return t?.farmName || 'Unknown Farm';
+  }
+
+  private getTurbineRegion(turbineId: string): string {
+    const t = this.turbines().find(x => x.turbineId === turbineId);
+    return t?.region || 'Unknown';
+  }
+
+  acknowledgeAlert(alert: Alert): void {
+    const id = parseInt(alert.id);
+    if (isNaN(id)) {
+      this.showToast('error', 'Invalid alert ID');
+      return;
+    }
+    this.alertService.acknowledgeAlert(id).pipe(
+      catchError(err => {
+        console.error('[Dashboard] Error acknowledging alert:', err);
+        this.showToast('error', 'Failed to acknowledge alert');
+        return of(null);
+      })
+    ).subscribe(result => {
+      if (result) {
+        alert.acknowledged = true;
+        this.showToast('success', 'Alert acknowledged');
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  resolveAlert(alert: Alert): void {
+    const id = parseInt(alert.id);
+    if (isNaN(id)) {
+      this.showToast('error', 'Invalid alert ID');
+      return;
+    }
+    this.alertService.resolveAlert(id).pipe(
+      catchError(err => {
+        console.error('[Dashboard] Error resolving alert:', err);
+        this.showToast('error', 'Failed to resolve alert');
+        return of(null);
+      })
+    ).subscribe(result => {
+      if (result) {
+        const filtered = this.alerts().filter(a => a.id !== alert.id);
+        this.alerts.set(filtered);
+        this.showToast('success', 'Alert resolved and removed');
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  refreshAlerts(): void {
+    this.loading.set(true);
+    this.alertService.getAlerts().pipe(
+      catchError(err => {
+        console.error('[Dashboard] Error refreshing alerts:', err);
+        this.showToast('error', 'Failed to refresh alerts');
+        return of([]);
+      })
+    ).subscribe(apiAlerts => {
+      const mappedAlerts: Alert[] = apiAlerts.map(a => ({
+        id: a.id?.toString() || '',
+        turbineId: a.turbineId,
+        turbineName: a.turbineName || a.turbineId,
+        farmName: this.getTurbineFarmName(a.turbineId),
+        region: this.getTurbineRegion(a.turbineId),
+        severity: a.severity as AlertSeverity,
+        message: a.message,
+        timestamp: a.createdAt ? new Date(a.createdAt) : new Date(),
+        acknowledged: a.status === 'ACKNOWLEDGED' || a.status === 'RESOLVED'
+      }));
+      this.alerts.set(mappedAlerts);
+      this.loading.set(false);
+      this.showToast('success', 'Alerts refreshed');
+      this.cdr.markForCheck();
+    });
+  }
+
+  scanAnomalies(): void {
+    this.loading.set(true);
+    this.showToast('info', 'Scanning for anomalies...');
+    this.alertService.scanForAnomalies().pipe(
+      catchError(err => {
+        console.error('[Dashboard] Error scanning anomalies:', err);
+        this.showToast('error', 'Failed to scan for anomalies');
+        return of([]);
+      })
+    ).subscribe(newAlerts => {
+      this.loading.set(false);
+      if (newAlerts.length > 0) {
+        this.showToast('warning', `${newAlerts.length} new anomal${newAlerts.length > 1 ? 'ies' : 'y'} detected`);
+        this.refreshAlerts();
+      } else {
+        this.showToast('success', 'No new anomalies detected');
+      }
+    });
+  }
+
+  openTelemetryModal(turbine: Turbine): void {
+    this.selectedTurbineForTelemetry = turbine;
+    this.formTelemetry = {
+      turbineId: turbine.turbineId,
+      powerOutput: 0,
+      windSpeed: 0,
+      temperature: 0,
+      vibration: 0,
+      rpm: 0,
+      efficiency: 0,
+    };
+    this.showTelemetryModal = true;
+  }
+
+  closeTelemetryModal(): void {
+    this.showTelemetryModal = false;
+    this.selectedTurbineForTelemetry = null;
+  }
+
+  saveTelemetryData(): void {
+    const f = this.formTelemetry;
+    if (!f.turbineId) {
+      this.showToast('error', 'Please select a turbine');
+      return;
+    }
+
+    const telemetryData: TelemetryData = {
+      turbineId: f.turbineId,
+      timestamp: new Date().toISOString(),
+      powerOutput: f.powerOutput || 0,
+      windSpeed: f.windSpeed || 0,
+      temperature: f.temperature || 0,
+      vibration: f.vibration || 0,
+      rpm: f.rpm || 0,
+      efficiency: f.efficiency || 0,
+    };
+
+    this.loading.set(true);
+    this.telemetryService.ingestTelemetry(telemetryData).pipe(
+      catchError(err => {
+        console.error('[Dashboard] Error adding telemetry:', err);
+        this.showToast('error', 'Failed to add telemetry data');
+        return of(null);
+      })
+    ).subscribe(result => {
+      this.loading.set(false);
+      if (result) {
+        this.showToast('success', 'Telemetry data added successfully');
+        this.closeTelemetryModal();
+        this.refreshData();
+      }
+    });
   }
 
   private setupLiveEvents(): void {
