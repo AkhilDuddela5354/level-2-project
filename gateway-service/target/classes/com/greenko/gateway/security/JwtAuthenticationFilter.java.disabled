@@ -1,0 +1,57 @@
+package com.greenko.gateway.security;
+
+import org.springframework.stereotype.Component;
+import org.springframework.web.server.ServerWebExchange;
+import org.springframework.web.server.WebFilter;
+import org.springframework.web.server.WebFilterChain;
+import reactor.core.publisher.Mono;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.server.reactive.ServerHttpRequest;
+
+@Component
+public class JwtAuthenticationFilter implements WebFilter {
+
+    private final JwtUtil jwtUtil;
+
+    public JwtAuthenticationFilter(JwtUtil jwtUtil) {
+        this.jwtUtil = jwtUtil;
+    }
+
+    @Override
+    public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
+        ServerHttpRequest request = exchange.getRequest();
+        String path = request.getPath().value();
+
+        // Skip authentication for login, signup, and health endpoints
+        if (path.contains("/auth/") || path.contains("/actuator/health")) {
+            return chain.filter(exchange);
+        }
+
+        // Extract token from Authorization header
+        String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+            return exchange.getResponse().setComplete();
+        }
+
+        String token = authHeader.substring(7);
+
+        // Validate token
+        if (!jwtUtil.validateToken(token)) {
+            exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+            return exchange.getResponse().setComplete();
+        }
+
+        // Add username and role to headers for downstream services
+        String username = jwtUtil.extractUsername(token);
+        String role = jwtUtil.extractRole(token);
+        ServerHttpRequest modifiedRequest = request.mutate()
+                .header("X-Username", username)
+                .header("X-User-Role", role)
+                .build();
+
+        return chain.filter(exchange.mutate().request(modifiedRequest).build());
+    }
+}

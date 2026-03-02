@@ -1,0 +1,14 @@
+# Alert Service - Base Configuration
+
+server:
+  port: 8083
+
+spring:
+  application:
+    name: alert-service
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html

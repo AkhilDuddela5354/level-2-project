@@ -1,0 +1,60 @@
+# Gateway Service Configuration
+
+server:
+  port: 8080
+
+spring:
+  application:
+    name: gateway-service
+  cloud:
+    gateway:
+      routes:
+        # Turbine Service routes
+        - id: turbine-service
+          uri: ${TURBINE_SERVICE_URL:http://turbine-service:8081}
+          predicates:
+            - Path=/api/turbines/**
+        
+        - id: turbine-service-docs
+          uri: ${TURBINE_SERVICE_URL:http://turbine-service:8081}
+          predicates:
+            - Path=/turbine/v3/api-docs
+          filters:
+            - StripPrefix=1
+        
+        # Telemetry Service routes
+        - id: telemetry-service
+          uri: ${TELEMETRY_SERVICE_URL:http://telemetry-service:8082}
+          predicates:
+            - Path=/api/telemetry/**
+        
+        - id: telemetry-service-docs
+          uri: ${TELEMETRY_SERVICE_URL:http://telemetry-service:8082}
+          predicates:
+            - Path=/telemetry/v3/api-docs
+          filters:
+            - StripPrefix=1
+        
+        # Alert Service routes
+        - id: alert-service
+          uri: ${ALERT_SERVICE_URL:http://alert-service:8083}
+          predicates:
+            - Path=/api/alerts/**
+        
+        - id: alert-service-docs
+          uri: ${ALERT_SERVICE_URL:http://alert-service:8083}
+          predicates:
+            - Path=/alerts/v3/api-docs
+          filters:
+            - StripPrefix=1
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    urls:
+      - name: Turbine Service
+        url: /turbine/v3/api-docs
+      - name: Telemetry Service
+        url: /telemetry/v3/api-docs
+      - name: Alert Service
+        url: /alerts/v3/api-docs

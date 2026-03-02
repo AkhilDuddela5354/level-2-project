@@ -1,0 +1,10 @@
+# Telemetry Service - Minimal Local Configuration
+# All other configurations are fetched from Config Server
+
+spring:
+  application:
+    name: telemetry-service
+  config:
+    import: optional:configserver:http://config-server:8888
+  profiles:
+    active: dev

@@ -1,0 +1,131 @@
+version: '3.8'
+
+services:
+  # Turbine Service
+  turbine-service:
+    build:
+      context: ./turbine-service
+      dockerfile: Dockerfile
+    image: turbine-service:latest
+    container_name: turbine-service
+    ports:
+      - "8081:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+    networks:
+      - wind-turbine-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Telemetry Service
+  telemetry-service:
+    build:
+      context: ./telemetry-service
+      dockerfile: Dockerfile
+    image: telemetry-service:latest
+    container_name: telemetry-service
+    ports:
+      - "8082:8082"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+    networks:
+      - wind-turbine-network
+    restart: unless-stopped
+
+  # Alert Service
+  alert-service:
+    build:
+      context: ./alert-service
+      dockerfile: Dockerfile
+    image: alert-service:latest
+    container_name: alert-service
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+    networks:
+      - wind-turbine-network
+    restart: unless-stopped
+
+  # Gateway Service
+  gateway-service:
+    build:
+      context: ./gateway-service
+      dockerfile: Dockerfile
+    image: gateway-service:latest
+    container_name: gateway-service
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: default
+      TURBINE_SERVICE_URL: http://turbine-service:8081
+      TELEMETRY_SERVICE_URL: http://telemetry-service:8082
+      ALERT_SERVICE_URL: http://alert-service:8083
+    networks:
+      - wind-turbine-network
+    depends_on:
+      - turbine-service
+      - telemetry-service
+      - alert-service
+    restart: unless-stopped
+
+  # Frontend (Angular)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: wind-turbine-frontend:latest
+    container_name: wind-turbine-frontend
+    ports:
+      - "4200:80"
+    networks:
+      - wind-turbine-network
+    depends_on:
+      - gateway-service
+    restart: unless-stopped
+
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - wind-turbine-network
+    restart: unless-stopped
+
+  # Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+    networks:
+      - wind-turbine-network
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+networks:
+  wind-turbine-network:
+    driver: bridge
+
+volumes:
+  prometheus-data:
+  grafana-data:

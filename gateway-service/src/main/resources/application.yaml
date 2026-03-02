@@ -1,0 +1,58 @@
+# Gateway Service Configuration
+
+spring:
+  application:
+    name: gateway-service
+  security:
+    user:
+      name: disabled
+      password: disabled
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.security.reactive.ReactiveUserDetailsServiceAutoConfiguration
+  cloud:
+    config:
+      enabled: false
+      import-check:
+        enabled: false
+    gateway:
+      routes:
+        - id: turbine-service
+          uri: http://turbine-service:8080
+          predicates:
+            - Path=/api/turbines/**
+        - id: telemetry-service
+          uri: http://telemetry-service:8080
+          predicates:
+            - Path=/api/telemetry/**
+        - id: alert-service
+          uri: http://alert-service:8080
+          predicates:
+            - Path=/api/alerts/**
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    com.greenko: DEBUG

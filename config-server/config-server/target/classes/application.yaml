@@ -1,0 +1,35 @@
+
+spring:
+  application:
+    name: config-server
+
+  cloud:
+    config:
+      server:
+        git:
+          uri: https://github.com/ramanujds/greenko-config-server
+          default-label: main
+          clone-on-start: true
+          search-paths:
+            - global
+            - services/*
+            - environments/{profile}
+
+
+server:
+  port: 8888
+
+management:
+
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,info,refresh,env,beans,loggers,metrics,prometheus
+
+  metrics:
+    tags:
+      application: ${spring.application.name}

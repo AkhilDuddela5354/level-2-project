@@ -1,0 +1,19 @@
+# Turbine Service - Base Configuration
+# Common settings for all environments
+
+server:
+  port: 8081
+
+spring:
+  application:
+    name: turbine-service
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html

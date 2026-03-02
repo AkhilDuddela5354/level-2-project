@@ -1,0 +1,16 @@
+# Alert Service - Development Environment
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:alerts
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  h2:
+    console:
+      enabled: true
+
+logging:
+  level:
+    com.greenko.alertservice: DEBUG

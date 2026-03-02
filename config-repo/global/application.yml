@@ -1,0 +1,41 @@
+# Global Configuration for All Services
+# Applied to every microservice in the Wind Turbine Monitoring System
+
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when-authorized
+  endpoints:
+    web:
+      exposure:
+        include: health,info,refresh,prometheus,metrics
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    tags:
+      application: ${spring.application.name}
+  tracing:
+    sampling:
+      probability: 1.0
+
+# Common logging configuration with trace IDs
+logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %logger{36} - %msg%n"
+    level: "%5p [${spring.application.name} traceId=%X{traceId} spanId=%X{spanId}]"
+  level:
+    root: INFO
+    com.greenko: DEBUG
+
+# Common Spring Boot settings
+spring:
+  jpa:
+    open-in-view: false
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
