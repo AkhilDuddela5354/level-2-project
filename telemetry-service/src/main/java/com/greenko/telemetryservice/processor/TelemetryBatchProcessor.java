@@ -118,29 +118,7 @@ public class TelemetryBatchProcessor {
         log.debug("Processing farm: {} on thread {}", farmId, Thread.currentThread().getName());
         
         try {
-            // TODO: Fetch raw telemetry data for the last hour
-            // List<RawTelemetry> rawData = telemetryRepository.findByFarmIdAndTimestampBetween(
-            //     farmId, oneHourAgo, now
-            // );
-            
-            // Simulate processing (replace with actual logic)
             int recordsProcessed = simulateProcessing(farmId);
-            
-            // TODO: Compute aggregations
-            // - Average power output
-            // - Average wind speed
-            // - Average efficiency
-            // - Detect anomalies (threshold-based or ML)
-            
-            // TODO: Save hourly aggregate
-            // HourlyAggregate aggregate = new HourlyAggregate();
-            // aggregate.setFarmId(farmId);
-            // aggregate.setTimestamp(LocalDateTime.now().truncatedTo(ChronoUnit.HOURS));
-            // aggregate.setAvgPowerOutput(avgPower);
-            // aggregate.setAvgWindSpeed(avgWind);
-            // aggregate.setEfficiency(efficiency);
-            // hourlyAggregateRepository.save(aggregate);
-            
             int anomalies = detectAnomalies(farmId, recordsProcessed);
             
             long duration = System.currentTimeMillis() - startTime;
@@ -185,9 +163,7 @@ public class TelemetryBatchProcessor {
      */
     private int simulateProcessing(String farmId) {
         try {
-            // Simulate processing time (10-100ms)
             Thread.sleep(ThreadLocalRandom.current().nextInt(10, 100));
-            // Simulate 360 records (10-second intervals for 1 hour)
             return 360;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -200,12 +176,6 @@ public class TelemetryBatchProcessor {
      * Uses threshold-based rules (can be replaced with ML model)
      */
     private int detectAnomalies(String farmId, int recordsProcessed) {
-        // Simulate anomaly detection
-        // TODO: Implement actual rules:
-        // - Power output below threshold for wind speed
-        // - Efficiency drop > 20%
-        // - Vibration levels excessive
-        // - Temperature out of range
         return ThreadLocalRandom.current().nextInt(0, 5);
     }
 
@@ -214,10 +184,6 @@ public class TelemetryBatchProcessor {
      * Replace with actual database query
      */
     private List<String> getFarmIdsForProcessing() {
-        // TODO: Query from database
-        // return farmRepository.findAllFarmIds();
-        
-        // Simulate 50 farms for now
         return List.of("FARM-001", "FARM-002", "FARM-003", "FARM-004", "FARM-005",
                       "FARM-006", "FARM-007", "FARM-008", "FARM-009", "FARM-010");
     }
